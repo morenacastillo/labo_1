@@ -1,0 +1,100 @@
+import pygame
+from sys import exit
+from random import *
+from pygame.locals import *
+
+pygame.font.init()
+
+red = (255, 0, 0)
+green = (0, 255, 0)
+blue = (0, 0, 255)
+white = (255, 255, 255)
+black = (0, 0, 0)
+cyan = (0, 255, 255)
+magenta = (255, 0, 255)
+yellow = (255, 255, 0)
+orange = (255, 127, 0)
+pink = (240, 153, 195)
+white_pink = (255, 232, 255)
+maroon = (100, 0, 50)
+
+WIDTH, HEIGHT = 800, 600
+SPEED = 5
+SNAKE_SIZE = 20
+FPS = 10
+
+running_menu = False
+running_game_over = False
+running_game = False
+running_config = False
+
+def volume_up():
+    current_volume = pygame.mixer.music.get_volume()
+    if current_volume < 1.0:
+        pygame.mixer.music.set_volume(current_volume + 0.05)
+
+def volume_down():
+    current_volume = pygame.mixer.music.get_volume()
+    if current_volume > 0.0:
+        pygame.mixer.music.set_volume(current_volume - 0.05)
+
+def reboot_game():
+    snake = [(WIDTH // 2, HEIGHT // 2)]
+    food = (randrange(1, WIDTH // SNAKE_SIZE) * SNAKE_SIZE, randrange(1, HEIGHT // SNAKE_SIZE) * SNAKE_SIZE)
+    direction = 'RIGHT'
+    speed = 1
+    score = 0
+    heart = 3
+    special_death_food = None
+    special_death_food_2 = None
+    special_death_food_3 = None
+    special_food_spawned = False
+    special_food_spawned_2 = False
+    special_food_spawned_3 = False
+    wall_list = []
+    wall_timer = pygame.time.get_ticks()
+    return snake, food, direction, speed, score, heart, special_death_food, special_death_food_2, special_death_food_3, special_food_spawned, special_food_spawned_2, special_food_spawned_3, wall_list, wall_timer
+
+def menu_init():
+    return True, False, False, False
+
+def config_init():
+    return False, True, False, False
+
+def game_init():
+    return False, False, True, False
+
+def game_over_init():
+    return False, False, False, True
+
+def crear_boton(screen, texto, background_color, background_color_hover, rect_boton, font_color, fuente=None):
+    try:
+        if fuente is None:
+            fuente = pygame.font.SysFont(None, 36)
+
+        if rect_boton.collidepoint(pygame.mouse.get_pos()):
+            pygame.draw.rect(screen, background_color_hover, rect_boton, border_radius=15)
+        else:
+            pygame.draw.rect(screen, background_color, rect_boton, border_radius=15)
+        mostrar_texto_centrado(screen, texto, *rect_boton.center, font_color, fuente)
+    except Exception as e:
+        print(f"Error al crear el botón: {e}")
+
+def mostrar_texto(superficie, texto, fuente, coordenadas, color_fuente, color_fondo=None, tamaño=36):
+    try:
+        fuente = pygame.font.SysFont(fuente, tamaño)
+        sup_texto = fuente.render(texto, True, color_fuente, color_fondo)
+        rect_texto = sup_texto.get_rect()
+        rect_texto.center = coordenadas
+        superficie.blit(sup_texto, rect_texto)
+    except:
+        print(f"Error")
+
+def mostrar_texto_centrado(screen, texto, center_x, center_y, font_color, fuente):
+    render = fuente.render(texto, True, font_color)
+    rect_text = render.get_rect(center = (center_x, center_y))
+    screen.blit(render, rect_text)
+
+def terminar():
+    pygame.quit()
+    exit()

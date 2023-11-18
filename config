@@ -2,43 +2,79 @@ import pygame
 from sys import exit
 from random import *
 from pygame.locals import *
-
 pygame.font.init()
 
-red = (255, 0, 0)
-green = (0, 255, 0)
-blue = (0, 0, 255)
 white = (255, 255, 255)
 black = (0, 0, 0)
-cyan = (0, 255, 255)
-magenta = (255, 0, 255)
-yellow = (255, 255, 0)
-orange = (255, 127, 0)
 pink = (240, 153, 195)
 white_pink = (255, 232, 255)
 maroon = (100, 0, 50)
 
-WIDTH, HEIGHT = 800, 600
 SPEED = 5
-SNAKE_SIZE = 20
+WIDTH, HEIGHT = 800, 600
+SNAKE_SIZE = 25
 FPS = 10
+direction = 'RIGHT'
 
-running_menu = False
-running_game_over = False
-running_game = False
-running_config = False
+special_death_food = None  
+special_food_spawned = False 
+food_rect_death = None
+special_death_food_2 = None
+special_food_spawned_2 = False
+food_rect_death_2 = None
+special_death_food_3 = None
+special_food_spawned_3 = False
+food_rect_death_3 = None
+
+font_name = pygame.font.SysFont("Century Gothic", 24)
+rect_name_width = 280
+rect_name_height = 40
+input_rect_name = pygame.Rect((WIDTH - rect_name_width) // 2, 530, rect_name_width, rect_name_height)
+color_active_name = maroon
+color_passive_name = pink
+current_color_name = color_passive_name
+name_entered = False
+active_name = False
+
+max_walls = 15
+wall_list = []
+wall_timer = pygame.time.get_ticks()  
+WALL_INTERVAL = 5000 
+
 
 def volume_up():
+    """
+    Aumenta el volumen del juego.
+
+    Returns:
+        None
+    """
     current_volume = pygame.mixer.music.get_volume()
     if current_volume < 1.0:
         pygame.mixer.music.set_volume(current_volume + 0.05)
 
+
 def volume_down():
+    """
+    Disminuye el volumen del juego.
+
+    Returns:
+        None
+    """
     current_volume = pygame.mixer.music.get_volume()
     if current_volume > 0.0:
         pygame.mixer.music.set_volume(current_volume - 0.05)
 
+
 def reboot_game():
+    """
+    Reinicia todas las variables del juego.
+
+    Returns:
+        Las variables reiniciadas (snake, food, direction, speed, score, heart,
+               special_death_food, special_death_food_2, special_death_food_3, special_food_spawned,
+               special_food_spawned_2, special_food_spawned_3, wall_list, wall_timer).
+    """
     snake = [(WIDTH // 2, HEIGHT // 2)]
     food = (randrange(1, WIDTH // SNAKE_SIZE) * SNAKE_SIZE, randrange(1, HEIGHT // SNAKE_SIZE) * SNAKE_SIZE)
     direction = 'RIGHT'
@@ -53,48 +89,331 @@ def reboot_game():
     special_food_spawned_3 = False
     wall_list = []
     wall_timer = pygame.time.get_ticks()
-    return snake, food, direction, speed, score, heart, special_death_food, special_death_food_2, special_death_food_3, special_food_spawned, special_food_spawned_2, special_food_spawned_3, wall_list, wall_timer
+    return snake, food, direction, speed, score, heart, special_death_food, special_death_food_2, special_death_food_3, \
+           special_food_spawned, special_food_spawned_2, special_food_spawned_3, wall_list, wall_timer
+
 
 def menu_init():
+    """
+    Inicializa las variables para el menú.
+    """
     return True, False, False, False
 
+
 def config_init():
+    """
+    Inicializa las variables para la configuración.
+    """
     return False, True, False, False
 
+
 def game_init():
+    """
+    Inicializa las variables para el juego.
+    """
     return False, False, True, False
 
+
 def game_over_init():
+    """
+    Inicializa las variables para la pantalla de fin de juego.
+    """
     return False, False, False, True
 
-def crear_boton(screen, texto, background_color, background_color_hover, rect_boton, font_color, fuente=None):
+
+def show_text(screen, text, font, coordinates, font_color, background_color=None, size=36):
+    """
+    Muestra texto en la pantalla.
+
+    Args:
+        screen (pygame.Surface): Superficie de la pantalla.
+        text (str): Texto a mostrar.
+        font (str): Tipo de fuente.
+        coordinates (tupla): Coordenadas (x, y) 
+        font_color (tupla): Color del texto.
+        background_color (tupla, opcional): Color de fondo del texto. Por defecto es None.
+        size (int, opcional): Tamaño de la fuente. Por defecto es 36.
+    """
     try:
-        if fuente is None:
-            fuente = pygame.font.SysFont(None, 36)
+        font = pygame.font.SysFont(font, size)
+        sup_text = font.render(text, True, font_color, background_color)
+        rect_text = sup_text.get_rect()
+        rect_text.center = coordinates
+        screen.blit(sup_text, rect_text)
+    except:
+        print(f"Error")
+
+
+def show_centered_text(screen, text, center_x, center_y, font_color, font):
+    """
+    Muestra texto centrado en la pantalla.
+
+    Args:
+        screen (pygame.Surface): Superficie de la pantalla.
+        text (str): Texto a mostrar.
+        center_x (int): Coordenada x del centro.
+        center_y (int): Coordenada y del centro.
+        font_color (tupla): Color del texto.
+        font (pygame.font.Font): Fuente pygame.
+    """
+    render = font.render(text, True, font_color)
+    rect_text = render.get_rect(center=(center_x, center_y))
+    screen.blit(render, rect_text)
+
+
+def draw_text_input(active_name, window, font, input_rect, text, active_color, passive_color):
+    """
+    Dibuja un cuadro de entrada de texto.
+
+    Args:
+        active_name (bool): Cuadro de texto activo.
+        window (pygame.Surface): Superficie de la ventana.
+        font (pygame.font.Font): Fuente pygame.
+        input_rect (pygame.Rect): Rectángulo del cuadro de texto.
+        text (str): Texto actual del cuadro de texto.
+        active_color (tupla): Color del cuadro de texto activo.
+        passive_color (tupla): Color del cuadro de texto inactivo.
+    """
+    if active_name:
+        current_color = active_color
+    else:
+        current_color = passive_color
+    pygame.draw.rect(window, current_color, input_rect, 2)
+    text_surface = font.render(text, True, (0, 0, 0))
+    window.blit(text_surface, (input_rect.x + 5, input_rect.y + 5))
+
+
+def check_collision_with_special_food(head, special_food, food_rect, heart):
+    """
+    Verifica si la cabeza de la serpiente colisiona con un alimento especial.
+
+    Args:
+        head : Coordenadas (x, y) de la cabeza de la serpiente.
+        special_food : Coordenadas (x, y) del alimento especial o None si no hay especial.
+        food_rect (pygame.Rect o None): Rectángulo del alimento especial o None si no hay especial.
+        heart (int): Número de vidas restantes.
+
+    Returns:
+        Retorna el estado de vidas y special_food
+    """
+    if special_food is not None and head == food_rect.topleft:
+        special_food = None
+        heart -= 1
+    return special_food, heart
+    
+
+def collide_snake(point_sound, food, food_rect):
+    """
+    Maneja la colisión de la serpiente con el alimento.
+
+    Args:
+        point_sound (pygame.mixer.Sound): Sonido al colisionar con el alimento.
+        food (tupla): Coordenadas (x, y) del alimento.
+        food_rect (pygame.Rect): Rectángulo del alimento.
+
+    Returns:
+        Retorna las nuevas coordenadas y el rectángulo del nuevo alimento.
+    """
+    point_sound.play()
+    food = (randrange(1, WIDTH // SNAKE_SIZE) * SNAKE_SIZE, randrange(1, HEIGHT // SNAKE_SIZE) * SNAKE_SIZE)
+    food_rect.topleft = food[0], food[1]
+    return food, food_rect
+
+
+def collides_with_existing_wall(new_wall, wall_list):
+    """
+    Verifica si un nuevo muro colisiona con muros existentes.
+
+    Args:
+        new_wall (pygame.Rect): Rectángulo del nuevo muro.
+        wall_list (lista): Lista de rectángulos de muros existentes.
+
+    Returns:
+        bool: True si colisiona, False de lo contrario.
+    """
+    collide = False
+    for existing_wall in wall_list:
+        if new_wall.colliderect(existing_wall):
+            collide = True
+            break 
+    return collide
+
+
+def handle_key_event(event, direction, speed):
+    """
+    Maneja eventos de teclado para cambiar la dirección y velocidad.
+
+    Args:
+        event (pygame.event.Event): Evento de teclado.
+        direction (str): Dirección actual de la serpiente.
+        speed (float): Velocidad actual de la serpiente.
+
+    Returns:
+        Retorna la nueva dirección y velocidad.
+    """
+    if event.type == pygame.KEYDOWN:
+        if event.key == pygame.K_UP and direction != 'DOWN':
+            direction = 'UP'
+        elif event.key == pygame.K_DOWN and direction != 'UP':
+            direction = 'DOWN'
+        elif event.key == pygame.K_LEFT and direction != 'RIGHT':
+            direction = 'LEFT'
+        elif event.key == pygame.K_RIGHT and direction != 'LEFT':
+            direction = 'RIGHT'
+        elif event.key == pygame.K_PLUS or event.key == pygame.K_KP_PLUS:
+            speed += 0.2
+        elif event.key == pygame.K_MINUS or event.key == pygame.K_KP_MINUS:
+            speed = max(1, speed - 0.2)
+    return direction, speed
+
+
+def move_snake(snake, direction):
+    """
+    Mueve la serpiente en la dirección dada.
+
+    Args:
+        snake: Coordenadas de la serpiente.
+        direction (str): Dirección de movimiento.
+    """
+    head = snake[0]
+    if direction == 'UP':
+        new_head = (head[0], head[1] - SNAKE_SIZE)
+    elif direction == 'DOWN':
+        new_head = (head[0], head[1] + SNAKE_SIZE)
+    elif direction == 'LEFT':
+        new_head = (head[0] - SNAKE_SIZE, head[1])
+    elif direction == 'RIGHT':
+        new_head = (head[0] + SNAKE_SIZE, head[1])
+    snake.insert(0, new_head)
+    
+
+def create_button(screen, texto, background_color, background_color_hover, rect_boton, font_color, font=None):
+    """
+    Crea un botón en la pantalla.
+
+    Args:
+        screen (pygame.Surface): Superficie de la pantalla.
+        texto (str): Texto del botón.
+        background_color (tupla): Color del botón.
+        background_color_hover (tupla): Color del botón al pasar el mouse.
+        rect_boton (pygame.Rect): Rectángulo del botón.
+        font_color (tupla): Color del texto del botón.
+        font (pygame.font.Font, opcional): Fuente del texto. Por defecto es None.
+    """
+    try:
+        if font is None:
+            font = pygame.font.SysFont(None, 36)
 
         if rect_boton.collidepoint(pygame.mouse.get_pos()):
             pygame.draw.rect(screen, background_color_hover, rect_boton, border_radius=15)
         else:
             pygame.draw.rect(screen, background_color, rect_boton, border_radius=15)
-        mostrar_texto_centrado(screen, texto, *rect_boton.center, font_color, fuente)
+        show_centered_text(screen, texto, *rect_boton.center, font_color, font)
     except Exception as e:
-        print(f"Error al crear el botón: {e}")
+        print(f"Error: {e}")
 
-def mostrar_texto(superficie, texto, fuente, coordenadas, color_fuente, color_fondo=None, tamaño=36):
-    try:
-        fuente = pygame.font.SysFont(fuente, tamaño)
-        sup_texto = fuente.render(texto, True, color_fuente, color_fondo)
-        rect_texto = sup_texto.get_rect()
-        rect_texto.center = coordenadas
-        superficie.blit(sup_texto, rect_texto)
-    except:
-        print(f"Error")
 
-def mostrar_texto_centrado(screen, texto, center_x, center_y, font_color, fuente):
-    render = fuente.render(texto, True, font_color)
-    rect_text = render.get_rect(center = (center_x, center_y))
-    screen.blit(render, rect_text)
+def generate_wall():
+    """
+    Genera un nuevo muro en una posición aleatoria.
+
+    Returns:
+        pygame.Rect: Rectángulo del nuevo muro.
+    """
+    wall_x = randrange(1, WIDTH // SNAKE_SIZE) * SNAKE_SIZE
+    wall_y = randrange(1, HEIGHT // SNAKE_SIZE) * SNAKE_SIZE
+    new_wall = pygame.Rect(wall_x, wall_y, SNAKE_SIZE, SNAKE_SIZE)
+    return new_wall
+
+
+def generate_food():
+    """
+    Genera un alimento especial en una posición aleatoria.
+
+    Returns:
+        tupla: Tupla con las coordenadas y el rectángulo del alimento especial.
+    """
+    special_food = (randrange(1, WIDTH // SNAKE_SIZE) * SNAKE_SIZE, randrange(1, HEIGHT // SNAKE_SIZE) * SNAKE_SIZE)
+    food_rect = pygame.Rect(special_food[0], special_food[1], SNAKE_SIZE, SNAKE_SIZE)
+    return special_food, food_rect
+    
+
+def create_rect(screen, y_position):
+    """
+    Crea un rectángulo para un botón en una posición específica.
+
+    Args:
+        screen (pygame.Surface): Superficie de la pantalla.
+        y_position (int): Posición en el eje y del rectángulo.
+
+    Returns:
+        pygame.Rect: Rectángulo creado.
+    """
+    size_button = (350, 50)
+    x_position = screen.get_width() // 2 - size_button[0] // 2
+    return pygame.Rect(x_position, y_position, *size_button)
+
+
+def create_music_button(window, font, active_text, inactive_text, active_color, inactive_color, active_rect, inactive_rect):
+    """
+    Crea un botón de música activo o inactivo.
+
+    Args:
+        window (pygame.Surface): Superficie de la ventana.
+        font (pygame.font.Font): Fuente del texto del botón.
+        active_text (str): Texto del botón cuando la música está activa.
+        inactive_text (str): Texto del botón cuando la música está inactiva.
+        active_color (tupla): Color del botón activo.
+        inactive_color (tupla): Color del botón inactivo.
+        active_rect (pygame.Rect): Rectángulo del botón activo.
+        inactive_rect (pygame.Rect): Rectángulo del botón inactivo.
+    """
+    if pygame.mixer.music.get_busy():
+        create_button(window, active_text, active_color, maroon, active_rect, white, font)
+    else:
+        create_button(window, inactive_text, inactive_color, maroon, inactive_rect, white, font)
+
+
+def check_and_generate_special_food(score, special_food, food_rect):
+    """
+    Verifica si se debe generar un nuevo alimento especial basado en la puntuación.
+
+    Args:
+        score (int): Puntuación actual del jugador.
+        special_food (tupla o None): Coordenadas (x, y) del alimento especial o None si no hay especial.
+        food_rect (pygame.Rect o None): Rectángulo del alimento especial o None si no hay especial.
+
+    Returns:
+        tupla: Tupla con el alimento especial actualizado y su rectángulo.
+    """
+    if score % 5 == 0 and special_food is None:
+        special_food, food_rect = generate_food()
+    return special_food, food_rect
+
+
+def is_game_over(snake_head, heart, snake_body, width, height):
+    """
+    Verifica si el juego ha terminado.
+
+    Args:
+        snake_head (tupla): Coordenadas (x, y) de la cabeza de la serpiente.
+        heart (int): Número de vidas restantes.
+        snake_body (lista): Lista de coordenadas de las partes del cuerpo de la serpiente.
+        width (int): Ancho de la pantalla.
+        height (int): Altura de la pantalla.
+
+    Returns:
+        bool: True si el juego ha terminado, False de lo contrario.
+    """
+    return heart == 0 or (snake_head[0] < 0 or snake_head[0] >= width or
+                          snake_head[1] < 0 or snake_head[1] >= height or
+                          snake_head in snake_body[1:])
+
 
 def terminar():
+    """
+    Termina el juego y cierra la ventana de pygame.
+
+    """
     pygame.quit()
     exit()

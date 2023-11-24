@@ -1,5 +1,4 @@
 import pygame
-from random import randrange
 from config import *
 import json
 pygame.init()
@@ -14,24 +13,31 @@ pygame.display.set_caption('SNAKE GAME')
 fuente = pygame.font.SysFont("Century Gothic", 24)
 clock = pygame.time.Clock()
 
-pygame.mixer.music.load("loads\musica\music.mp3")
+pygame.mixer.music.load("entorno_pygame\loads\musica\music.mp3")
 pygame.mixer.music.set_volume(0.1)
 pygame.mixer.music.play(-1)
-point_sound = pygame.mixer.Sound("loads\musica\point.mp3")
+point_sound = pygame.mixer.Sound("entorno_pygame\loads\musica\point.mp3")
 point_sound.set_volume(0.2)
 
 try:
-    food_image = pygame.image.load("loads\default_apple.png")
+    food_image = pygame.image.load("entorno_pygame\loads\default_apple.png")
     food_image_transform = pygame.transform.scale(food_image, (SNAKE_SIZE, SNAKE_SIZE))
 except Exception as e:
-    print(f"Error al cargar la imagen: {e}")
-food, food_rect = generate_food()
+    print(f"There was an error loading the apple image: {e}")
+    default_apple_color = red 
+    food_image_transform = pygame.Surface((SNAKE_SIZE, SNAKE_SIZE))
+    food_image_transform.fill(default_apple_color)
 
 try:
-    death_food_image = pygame.image.load("loads\death_apple.png")
+    death_food_image = pygame.image.load("entorno_pygame\loads\death_apple.png")
     death_food_image_transform = pygame.transform.scale(death_food_image, (SNAKE_SIZE, SNAKE_SIZE))
 except Exception as e:
-    print("Error al cargar la imagen: {e}")
+    print(f"There was an error loading the death apple image: {e}")
+    death_apple_color = brown  
+    death_food_image_transform = pygame.Surface((SNAKE_SIZE, SNAKE_SIZE))
+    death_food_image_transform.fill(death_apple_color)
+
+food, food_rect = generate_food()
 
 btn_start_game = create_rect(window, 220)
 btn_config = create_rect(window, 290)
@@ -52,15 +58,13 @@ score = 0
 top_score = 0
 user_name= ""
 top_user_name = ""
-heart = 3
-snake = [(WIDTH // 2, HEIGHT // 2)]
-direction = 'RIGHT'
-speed = 1
-
 data = {"top_score": top_score,
         "user_name": user_name}
+snake = [(WIDTH // 2, HEIGHT // 2)]
+snake_data = {"hearts": 3, "speed": 1, "direction": 'RIGHT'}
+
 try:
-    with open("data.json", "r") as json_file:
+    with open("entorno_pygame\data.json", "r") as json_file:
         loaded_data = json.load(json_file)
     top_score = loaded_data.get("top_score", 0)
     top_user_name = loaded_data.get("user_name", "")
@@ -69,7 +73,7 @@ except FileNotFoundError:
 
 #=============================================================== PRINCIPAL MENU================================================================================
 while running_menu:
-    snake, food, direction, speed, score, heart, special_death_food, special_death_food_2, special_death_food_3, \
+    snake, food, snake_data["direction"], snake_data["speed"], score, heart, special_death_food, special_death_food_2, special_death_food_3, \
     special_food_spawned, special_food_spawned_2, special_food_spawned_3, wall_list, wall_timer = reboot_game()
     running_menu, running_config, running_game, running_game_over = menu_init()
     for event in pygame.event.get():
@@ -92,7 +96,6 @@ while running_menu:
                 running_menu, running_config, running_game, running_game_over = config_init()
             elif btn_quit.collidepoint(event.pos):
                 terminar()
-
     window.fill(white_pink)
     show_text(window, "SNAKE GAME", "centurygothic", (WIDTH // 2, 90), black, size=72)
     show_text(window, f"HIGHEST PLAYER SCORE: {top_user_name} {top_score}", "centurygothic", (WIDTH // 2, 150), black, size=28)
@@ -121,7 +124,6 @@ while running_menu:
                     pygame.mixer.music.unpause()
                 elif btn_back.collidepoint(event.pos):
                     running_menu, running_config, running_game, running_game_over = menu_init()
-
         window.fill(white_pink)
         show_text(window, "SETTINGS", "centurygothic", (WIDTH // 2, 90), black, size=72)
         create_button(window, "VOLUME DOWN", pink, maroon, btn_volume_down, white, fuente)
@@ -138,7 +140,7 @@ while running_menu:
             if event.type == pygame.QUIT:
                 terminar()
             else:
-                direction, speed = handle_key_event(event, direction, speed)
+                snake_data["direction"], snake_data["speed"] = handle_key_event(event, snake_data["direction"], snake_data["speed"])
 
         if score == 5 and special_death_food is None:
             special_death_food, food_rect_death = generate_food()
@@ -147,9 +149,9 @@ while running_menu:
         elif score == 15 and special_death_food_3 is None:
             special_death_food_3, food_rect_death_3 = generate_food()
 
-        for _ in range(int(speed)):
+        for _ in range(int(snake_data["speed"])):
             head = snake[0]
-            move_snake(snake, direction)
+            move_snake(snake, snake_data["direction"])
             if head == food_rect.topleft:
                 score +=1
                 collide_snake(point_sound, food, food_rect)
@@ -159,7 +161,7 @@ while running_menu:
             special_death_food, heart = check_collision_with_special_food(head, special_death_food, food_rect_death, heart)
             special_death_food_2, heart = check_collision_with_special_food(head, special_death_food_2, food_rect_death_2, heart)
             special_death_food_3, heart = check_collision_with_special_food(head, special_death_food_3, food_rect_death_3, heart)
-            
+
         if current_time - wall_timer > WALL_INTERVAL and len(wall_list) < max_walls:
             new_wall = generate_wall()
             while collides_with_existing_wall(new_wall, wall_list):
@@ -183,10 +185,10 @@ while running_menu:
             pygame.draw.rect(window, black, wall) 
             if pygame.Rect(head[0], head[1], SNAKE_SIZE, SNAKE_SIZE).colliderect(wall):
                 heart -= 1
-                
         head = snake[0]
         if is_game_over(head, heart, snake, WIDTH, HEIGHT):
             running_menu, running_config, running_game, running_game_over = game_over_init()
+        
         pygame.display.flip()
         clock.tick(FPS)
 #=============================================================== GAME OVER ================================================================================
@@ -214,7 +216,7 @@ while running_menu:
         create_button(window, "QUIT", pink, maroon, btn_quit, white, fuente)
         show_text(window, f"HIGHEST PLAYER SCORE: {top_user_name}: {top_score}", "centurygothic", (WIDTH // 2, 440), white, size=32)
         pygame.display.flip()
-        clock.tick(FPS)       
+        clock.tick(FPS)
 pygame.quit()
 
 
